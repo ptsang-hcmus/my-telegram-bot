@@ -16,28 +16,24 @@ import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 import com.binance.api.client.BinanceApiClientFactory;
 import com.binance.api.client.BinanceApiRestClient;
 import com.binance.api.client.domain.account.Account;
+import com.binance.api.client.domain.account.AssetBalance;
 import com.binance.api.client.domain.market.TickerStatistics;
 
-import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.Date;
 import java.util.List;
 
 import javax.annotation.PostConstruct;
 
-/**
- * 
- * This example bot is an echo bot that just repeats the messages sent to him
- *
- */
 @Component
 public class Bot extends TelegramLongPollingBot {
 
 	private static final Logger logger = LoggerFactory.getLogger(Bot.class);
 
 	private static List<String> followCoins = Arrays
-			.asList(new String[] { "BTC", "DOGE", "ETH", "DOT", "ADA", "LINK" });
+			.asList(new String[] { "BTC", "ETH", "DOT", "ADA", "LINK", "LTC", "SFP" });
 
 	Bot() {
 		followCoins.sort((final String a, final String b) -> a.compareTo(b));
@@ -79,7 +75,6 @@ public class Bot extends TelegramLongPollingBot {
 		response.setParseMode("html");
 		try {
 			execute(response);
-			logger.info("Sent message \"{}\" to {}", userChatText, myChatId);
 		} catch (TelegramApiException e) {
 			logger.error("Failed to send message \"{}\" to {} due to error: {}", userChatText, myChatId,
 					e.getMessage());
@@ -120,11 +115,63 @@ public class Bot extends TelegramLongPollingBot {
 		try {
 			BinanceApiClientFactory factory = BinanceApiClientFactory.newInstance(binanceApiKey, binanceSecretKey);
 			BinanceApiRestClient client = factory.newRestClient();
-			Account account = client.getAccount();
-			logger.info("Account: {}", account);
-			sendAMessageToMyBot(account.getAssetBalance("BUSD").toString());
-		} catch (Exception e) {
+
+			long serverTime = client.getServerTime();
+			Account account = client.getAccount(1000L, serverTime);
+
+			List<BinanceAsset> balances = new ArrayList<BinanceAsset>();
+			double totalUSDTAccount = 0;
+
+			TickerStatistics tickerStatistics = client.get24HrPriceStatistics("BTCUSDT");
+			double btcPrice = Double.parseDouble(tickerStatistics.getLastPrice());
+
+			for (AssetBalance balance : account.getBalances()) {
+				double free = Double.parseDouble(balance.getFree());
+				if (free == 0) {
+					continue;
+				}
+
+				double totalUSDTOfThisAsset = 0;
+
+				if ("USDT".equals(balance.getAsset())) {
+					totalUSDTOfThisAsset = free;
+				} else {
+					try {
+						tickerStatistics = client.get24HrPriceStatistics(balance.getAsset() + "USDT");
+						totalUSDTOfThisAsset = free * Double.parseDouble(tickerStatistics.getLastPrice());
+					} catch (Exception e) {
+						try {
+							tickerStatistics = client.get24HrPriceStatistics(balance.getAsset() + "BTC");
+							double totalBTCOfThisAsset = free * Double.parseDouble(tickerStatistics.getLastPrice());
+							totalUSDTOfThisAsset = totalBTCOfThisAsset * btcPrice;
+						} catch (Exception ee) {
+							logger.error(balance.getAsset());
+							sendAMessageToMyBot(ee.toString());
+						}
+					}
+				}
+
+				BinanceAsset bs = new BinanceAsset();
+				bs.setAsset(balance.getAsset());
+				bs.setFree(Double.parseDouble(balance.getFree()));
+				bs.setWorth(totalUSDTOfThisAsset);
+				totalUSDTAccount += totalUSDTOfThisAsset;
+
+				balances.add(bs);
+			}
+			Collections.sort(balances);
+			StringBuilder sb = new StringBuilder();
+			sb.append("<i>Total USDT in account: </i> <b>" + String.format("%.3f", totalUSDTAccount) + "</b>\n\n");
+			sb.append("<i>Asset list:</i>\n");
+			for (BinanceAsset balance : balances) {
+				sb.append("<i>" + balance.toString() + "</i>\n");
+			}
+			sendAMessageToMyBot(sb.toString());
+		} catch (
+
+		Exception e) {
 			logger.error("Error: {}", e);
+			sendAMessageToMyBot(e.toString());
 		}
 	}
 
@@ -200,7 +247,7 @@ public class Bot extends TelegramLongPollingBot {
 				sb.append("Price of <b>__" + call_data + "__</b> at <i>" + (new Date()).toString() + "</i>");
 				BinanceApiClientFactory factory = BinanceApiClientFactory.newInstance(binanceApiKey, binanceSecretKey);
 				BinanceApiRestClient client = factory.newRestClient();
-				TickerStatistics tickerStatistics = client.get24HrPriceStatistics(call_data + "BUSD");
+				TickerStatistics tickerStatistics = client.get24HrPriceStatistics(call_data + "USDT");
 				sb.append("\n<i>Symbol:</i> " + tickerStatistics.getSymbol());
 				sb.append("\n<b>PriceChange:</b> " + tickerStatistics.getPriceChange());
 				sb.append("\n<b>PriceChangePercent:</b> " + tickerStatistics.getPriceChangePercent());
