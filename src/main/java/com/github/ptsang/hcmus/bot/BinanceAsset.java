@@ -7,7 +7,7 @@ public class BinanceAsset implements Comparable<BinanceAsset> {
 
 	@Override
 	public int compareTo(BinanceAsset o) {
-		return (int) ((int) o.getWorth() - worth);
+		return Double.compare(o.getWorth(), getWorth());
 	}
 
 	@Override
