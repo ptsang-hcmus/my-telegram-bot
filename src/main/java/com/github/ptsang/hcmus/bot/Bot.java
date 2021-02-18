@@ -89,8 +89,6 @@ public class Bot extends TelegramLongPollingBot {
 		InlineKeyboardMarkup markupInline = new InlineKeyboardMarkup();
 		List<List<InlineKeyboardButton>> rowsInline = new ArrayList<>();
 		List<InlineKeyboardButton> rowInline = new ArrayList<>();
-		List<String> followCoins = Arrays.asList(new String[] { "BTC", "DOGE", "ETH", "DOT", "ADA", "LINK" });
-		followCoins.sort((final String a, final String b) -> a.compareTo(b));
 		for (String followCoin : followCoins) {
 			rowInline.add(new InlineKeyboardButton().setText(followCoin).setCallbackData(followCoin));
 			if (rowInline.size() == 2) {
@@ -101,7 +99,6 @@ public class Bot extends TelegramLongPollingBot {
 		if (!rowInline.isEmpty()) {
 			rowsInline.add(rowInline);
 		}
-		rowsInline.add(rowInline);
 		markupInline.setKeyboard(rowsInline);
 		response.setReplyMarkup(markupInline);
 		try {
@@ -249,15 +246,15 @@ public class Bot extends TelegramLongPollingBot {
 				BinanceApiRestClient client = factory.newRestClient();
 				TickerStatistics tickerStatistics = client.get24HrPriceStatistics(call_data + "USDT");
 				sb.append("\n<i>Symbol:</i> " + tickerStatistics.getSymbol());
-				sb.append("\n<b>PriceChange:</b> " + tickerStatistics.getPriceChange());
-				sb.append("\n<b>PriceChangePercent:</b> " + tickerStatistics.getPriceChangePercent());
-				sb.append("\n<b>LowPrice:</b> " + tickerStatistics.getLowPrice());
-				sb.append("\n<b>HighPrice:</b> " + tickerStatistics.getHighPrice());
+				sb.append("\n💰 change: <i>" + tickerStatistics.getPriceChange() + "</i>");
+				sb.append("\n💰 change %: <i>" + tickerStatistics.getPriceChangePercent() + "</i>");
+				sb.append("\n📉: <b>" + tickerStatistics.getLowPrice() + "</b>");
+				sb.append("\n📈: <b>" + tickerStatistics.getHighPrice() + "</b>");
 				Double lo = Double.parseDouble(tickerStatistics.getLowPrice()),
 						hi = Double.parseDouble(tickerStatistics.getHighPrice());
-				sb.append("\n<b>LowHighPriceChange:</b> " + String.format("%f", (hi - lo)));
-				sb.append("\n<b>LowHighPriceChangePercent:</b> " + String.format("%f", ((hi - lo) / lo * 100)));
-				sb.append("\n<b>LastPrice:</b> " + tickerStatistics.getLastPrice());
+				sb.append("\n📈📉: <b>" + String.format("%f", (hi - lo)) + "</b>");
+				sb.append("\n📈📉 %: <b>" + String.format("%f", ((hi - lo) / lo * 100)) + "</b>");
+				sb.append("\nLast: <b>" + tickerStatistics.getLastPrice() + "</b>");
 
 				EditMessageText new_message = new EditMessageText().setParseMode("html").setChatId(chat_id)
 						.setMessageId((int) message_id).setText(sb.toString());
